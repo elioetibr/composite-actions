@@ -46,7 +46,7 @@ runs:
     - name: Ensure ECR repository (aws)
       id: ecr
       if: ${{ inputs.provider == 'aws' }}
-      uses: elioetibr/composite-actions/ecr-repository-check@main
+      uses: elioetibr/composite-actions/ecr-repository-check@v0.0.1-2
       with:
         repository: ${{ inputs.repository }}
         region: ${{ inputs.aws-region }}

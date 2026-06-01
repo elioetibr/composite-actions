@@ -146,7 +146,7 @@ runs:
   steps:
     - name: Set up GitHub Bot Configuration
       id: elioetibr-bot
-      uses: elioetibr/composite-actions/github-bot-config@main
+      uses: elioetibr/composite-actions/github-bot-config@v0.0.1-2
 
     - name: Generate GitHub App Token
       uses: actions/create-github-app-token@v3
@@ -234,7 +234,7 @@ runs:
         mask-password: 'true'
 
     - name: Create ECR Private Repository if Not Exists
-      uses: elioetibr/composite-actions/ecr-repository-check@main
+      uses: elioetibr/composite-actions/ecr-repository-check@v0.0.1-2
       id: ecr-repository-check
       with:
         repository: ${{ inputs.ecr-repository }}

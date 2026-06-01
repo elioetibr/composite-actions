@@ -47,7 +47,7 @@ runs:
   steps:
     - name: Set up GitHub Bot Configuration
       id: elioetibr-bot
-      uses: elioetibr/composite-actions/github-bot-config@main
+      uses: elioetibr/composite-actions/github-bot-config@v0.0.1-2
 
     - name: Generate GitHub App Token
       id: app-token

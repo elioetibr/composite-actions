@@ -126,7 +126,7 @@ runs:
     - name: AWS ECR Setup
       id: aws
       if: ${{ inputs.provider == 'aws' }}
-      uses: elioetibr/composite-actions/aws-ecr-setup@main
+      uses: elioetibr/composite-actions/aws-ecr-setup@v0.0.1-2
       with:
         aws-account-id: ${{ inputs.aws-account-id }}
         aws-region: ${{ inputs.aws-region }}
