@@ -1,0 +1,151 @@
+{
+  "categories": [
+    {
+      "title": "## 🎉 Initialization",
+      "labels": ["init"],
+      "rules": [
+        {
+          "pattern": "^init(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 🚀 Features",
+      "labels": ["feature", "enhancement"],
+      "rules": [
+        {
+          "pattern": "^(feat|feature|enhancement)(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 🐛 Bug Fixes",
+      "labels": ["fix", "bugfix", "bug"],
+      "rules": [
+        {
+          "pattern": "^(fix|bugfix)(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 🔧 Refactoring",
+      "labels": ["refactor"],
+      "rules": [
+        {
+          "pattern": "^refactor(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## ⚡ Performance",
+      "labels": ["perf"],
+      "rules": [
+        {
+          "pattern": "^perf(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 📚 Documentation",
+      "labels": ["documentation"],
+      "rules": [
+        {
+          "pattern": "^docs?(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 🎨 Styling",
+      "labels": ["style"],
+      "rules": [
+        {
+          "pattern": "^style(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 🧪 Testing",
+      "labels": ["test"],
+      "rules": [
+        {
+          "pattern": "^test(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 📦 Build",
+      "labels": ["build"],
+      "rules": [
+        {
+          "pattern": "^build(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 👷 CI/CD",
+      "labels": ["ci"],
+      "rules": [
+        {
+          "pattern": "^ci(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## ⬆️ Dependencies",
+      "labels": ["dependencies"],
+      "rules": [
+        {
+          "pattern": "^(chore\\(deps[^)]*\\)|deps?)(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## 🔨 Miscellaneous",
+      "labels": ["chore", "maintenance"],
+      "rules": [
+        {
+          "pattern": "^chore(?!\\(deps)(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    },
+    {
+      "title": "## ⏪ Reverts",
+      "labels": ["revert"],
+      "rules": [
+        {
+          "pattern": "^revert(\\([^)]+\\))?!?:",
+          "on_property": "title",
+          "flags": "i"
+        }
+      ]
+    }
+  ],
+  "template": "${{CHANGELOG}}\n\n## 📋 Uncategorized\n${{UNCATEGORIZED}}",
+  "pr_template": "- ${{TITLE}}",
+  "empty_template": "No changes in this release",
+  "max_commits_to_display": 100
+}

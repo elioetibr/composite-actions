@@ -1,0 +1,60 @@
+name: Slack Notification with Payload and Update Message
+description: Post a Slack message via chat.postMessage, or update an existing one via chat.update when a message timestamp is supplied.
+author: Elio Severo Junior <elioseverojunior@gmail.com>
+
+branding:
+  icon: bell
+  color: purple
+
+inputs:
+  channel-id:
+    description: Slack channel ID to post or update the message in.
+    required: true
+  slack-bot-token:
+    description: Slack bot token used to authenticate with the Slack Web API.
+    required: true
+  payload:
+    description: Slack message payload as a JSON object. The channel (and ts, when updating) are merged in automatically.
+    required: true
+  update-ts:
+    description: Timestamp of an existing message to update. When set, the message is updated via chat.update instead of posted.
+    required: false
+    default: ''
+
+outputs:
+  ts:
+    description: Timestamp of the posted or updated Slack message.
+    value: ${{ steps.slack.outputs.ts }}
+  channel-id:
+    description: Channel ID returned by the Slack Web API.
+    value: ${{ steps.slack.outputs.channel_id }}
+
+runs:
+  using: composite
+  steps:
+    - id: build-payload
+      shell: bash
+      env:
+        CHANNEL_ID: ${{ inputs.channel-id }}
+        UPDATE_TS: ${{ inputs.update-ts }}
+        PAYLOAD: ${{ inputs.payload }}
+      run: |
+        if [ -n "${UPDATE_TS}" ]; then
+          method="chat.update"
+          payload="$(jq -n --arg c "${CHANNEL_ID}" --arg ts "${UPDATE_TS}" --argjson p "${PAYLOAD}" '$p + {channel: $c, ts: $ts}')"
+        else
+          method="chat.postMessage"
+          payload="$(jq -n --arg c "${CHANNEL_ID}" --argjson p "${PAYLOAD}" '$p + {channel: $c}')"
+        fi
+        echo "method=${method}" >> "${GITHUB_OUTPUT}"
+        {
+          echo "payload<<SLACK_PAYLOAD_EOF"
+          echo "${payload}"
+          echo "SLACK_PAYLOAD_EOF"
+        } >> "${GITHUB_OUTPUT}"
+    - id: slack
+      uses: slackapi/slack-github-action@v3
+      with:
+        method: ${{ steps.build-payload.outputs.method }}
+        token: ${{ inputs.slack-bot-token }}
+        payload: ${{ steps.build-payload.outputs.payload }}

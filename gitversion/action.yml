@@ -1,0 +1,90 @@
+name: GitVersion
+description: Install GitVersion and compute semantic version information for the current repository.
+author: Elio Severo Junior <elioseverojunior@gmail.com>
+
+branding:
+  icon: tag
+  color: green
+
+inputs:
+  version-spec:
+    description: GitVersion Version Specification
+    required: true
+  config-file-path:
+    description: Optional path to config file (defaults to GitVersion.yml)
+    required: false
+    default: 'GitVersion.yml'
+  prefer-latest-version:
+    description: Prefer to download the latest version matching the version-spec, even if there is a local cached version.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Install GitVersion
+      id: installGitversion
+      uses: gittools/actions/gitversion/setup@v4.5.0
+      with:
+        versionSpec: ${{ inputs.version-spec }}
+        preferLatestVersion: ${{ inputs.prefer-latest-version }}
+
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v4.5.0
+
+outputs:
+  major:
+    description: Major Version
+    value: ${{ steps.gitversion.outputs.Major }}
+  minor:
+    description: Minor Version
+    value: ${{ steps.gitversion.outputs.Minor }}
+  patch:
+    description: Patch Version
+    value: ${{ steps.gitversion.outputs.Patch }}
+  major-minor:
+    description: Major.Minor Version
+    value: ${{ steps.gitversion.outputs.Major }}.${{ steps.gitversion.outputs.Minor }}
+  major-minor-patch:
+    description: Major.Minor.Patch Version
+    value: ${{ steps.gitversion.outputs.MajorMinorPatch }}
+  semver:
+    description: SemVer Version
+    value: ${{ steps.gitversion.outputs.SemVer }}
+  full-semver:
+    description: Full SemVer Version
+    value: ${{ steps.gitversion.outputs.FullSemVer }}
+  branch-name:
+    description: Branch Name
+    value: ${{ steps.gitversion.outputs.BranchName }}
+  sha:
+    description: Sha Commit id
+    value: ${{ steps.gitversion.outputs.Sha }}
+  short-sha:
+    description: Short Sha Commit Id
+    value: ${{ steps.gitversion.outputs.ShortSha }}
+  commit-date:
+    description: Commit Date
+    value: ${{ steps.gitversion.outputs.CommitDate }}
+  nuget-version:
+    description: NuGet Version
+    value: ${{ steps.gitversion.outputs.NuGetVersion }}
+  nuget-version-v2:
+    description: NuGet Version V2
+    value: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
+  pre-release-tag:
+    description: Pre-Release Tag
+    value: ${{ steps.gitversion.outputs.PreReleaseTag }}
+  pre-release-tag-with-dash:
+    description: Pre-Release Tag With Dash
+    value: ${{ steps.gitversion.outputs.PreReleaseTagWithDash }}
+  build-metadata:
+    description: Build Metadata
+    value: ${{ steps.gitversion.outputs.BuildMetaData }}
+  version-source-sha:
+    description: Version Source Sha
+    value: ${{ steps.gitversion.outputs.VersionSourceSha }}
+  commits-since-version-source:
+    description: Commits Since Version Source
+    value: ${{ steps.gitversion.outputs.CommitsSinceVersionSource }}

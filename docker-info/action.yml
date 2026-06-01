@@ -1,0 +1,76 @@
+name: Docker Info Composite Action
+description: Compute the Docker image name, architecture, and tag suffix from version and platform inputs.
+author: Elio Severo Junior <elioseverojunior@gmail.com>
+
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  platform:
+    description: The Platform (e.g. linux/amd64 linux/arm64)
+    required: false
+  repository:
+    description: Repository Name
+    required: true
+  sha:
+    description: Commit SHA
+    required: true
+  short-sha:
+    description: Commit Short SHA
+    required: true
+  semver:
+    description: Semantic Version (e.g. 1.2.3 or e.g. 1.2.3-rc1 or e.g. 1.2.3-rc1+build123 or e.g. 1.2.3-rc1+build123-1)
+    required: true
+
+outputs:
+  architecture:
+    description: 'Docker Architecture'
+    value: ${{ steps.architecture.outputs.arch }}
+  name:
+    description: 'Docker Image Name'
+    value: ${{ steps.name.outputs.name }}
+  suffix:
+    description: 'Docker Suffix'
+    value: ${{ steps.architecture.outputs.suffix }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set Docker Architecture
+      id: architecture
+      shell: bash -l {0}
+      run: |
+        #!/usr/bin/env bash
+
+        set -euo pipefail
+
+        PLATFORM="${{ inputs.platform }}"
+
+        if [[ ! -z "${PLATFORM}" ]]; then
+          ARCH="${PLATFORM#linux/}-"
+          SUFFIX=""
+        else
+          ARCH=""
+          SUFFIX="-${{ inputs.semver }}"
+        fi
+
+        echo "ARCH=${ARCH}" >> "$GITHUB_ENV"
+        echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
+
+        echo "SUFFIX=${SUFFIX}" >> "$GITHUB_ENV"
+        echo "suffix=${SUFFIX}" >> "$GITHUB_OUTPUT"
+
+    - name: Set Docker Name
+      id: name
+      shell: bash -l {0}
+      run: |
+        #!/usr/bin/env bash
+
+        set -euo pipefail
+
+        if [[ -z "${{ steps.architecture.outputs.arch }}" ]]; then
+          echo "name=${{ inputs.repository }}-${{ inputs.semver }}-${{ inputs.short-sha }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "name=${{ inputs.repository }}-${{ steps.architecture.outputs.arch }}${{ inputs.semver }}-${{ inputs.short-sha }}" >> "$GITHUB_OUTPUT"
+        fi

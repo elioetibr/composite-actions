@@ -1,0 +1,34 @@
+---
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    # `directories:` (plural) is a Dependabot v2 feature — one entry covers
+    # multiple manifest locations and produces one PR per dependency update
+    # rather than one per directory. Workflows live at `/`, and each
+    # composite action lives at `/<name>/` with its own `action.yml` whose
+    # `uses:` references need to stay up to date.
+    directories:
+      - /
+      - /bot-setup
+      - /checkout-as-bot
+      - /setup-cargo-tools
+      - /setup-rust-cache
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: chore
+      include: scope
+    # Batch all action updates into a single weekly PR so one CI run covers
+    # the lot. Override per-action with a separate group if a tricky one
+    # ever needs isolated review.
+    groups:
+      github-actions:
+        patterns:
+          - "*"

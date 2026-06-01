@@ -1,0 +1,63 @@
+name: 'Ensure Container Repository'
+description: >-
+  Cloud-agnostic repository provisioning. For the `aws` provider this delegates
+  to ecr-repository-check (ECR repositories must be created explicitly and need
+  an access policy + lifecycle tags). All other providers (ghcr, gcp, azure,
+  dockerhub, generic) auto-create the repository on first push, so this becomes
+  a no-op while still emitting the same output contract.
+author: 'elioseverojunior@gmail.com'
+
+branding:
+  icon: database
+  color: blue
+
+inputs:
+  provider:
+    description: 'Registry provider: aws | gcp | azure | ghcr | dockerhub | generic'
+    required: true
+  repository:
+    description: 'Repository name'
+    required: true
+  is-default-branch:
+    description: 'Whether the current branch is the default branch (true/false)'
+    required: false
+    default: 'false'
+  # AWS-only
+  aws-region:
+    description: 'AWS Region (aws provider)'
+    required: false
+    default: ''
+  aws-account-id:
+    description: 'AWS Account ID (aws provider)'
+    required: false
+    default: ''
+
+outputs:
+  needs-latest:
+    description: 'Whether downstream builds should include the latest tag'
+    value: ${{ inputs.provider == 'aws' && steps.ecr.outputs.needs-latest || 'false' }}
+  status:
+    description: 'Repository lifecycle status (bootstrap/stable for aws; n/a otherwise)'
+    value: ${{ inputs.provider == 'aws' && steps.ecr.outputs.status || 'n/a' }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure ECR repository (aws)
+      id: ecr
+      if: ${{ inputs.provider == 'aws' }}
+      uses: elioetibr/composite-actions/ecr-repository-check@main
+      with:
+        repository: ${{ inputs.repository }}
+        region: ${{ inputs.aws-region }}
+        aws-account-id: ${{ inputs.aws-account-id }}
+        is-default-branch: ${{ inputs.is-default-branch }}
+
+    - name: Auto-create note (non-aws)
+      if: ${{ inputs.provider != 'aws' }}
+      shell: bash
+      env:
+        PROVIDER: ${{ inputs.provider }}
+        REPOSITORY: ${{ inputs.repository }}
+      run: |
+        echo "Provider '${PROVIDER}' auto-creates repository '${REPOSITORY}' on first push; nothing to provision."
