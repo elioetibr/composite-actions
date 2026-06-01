@@ -625,24 +625,23 @@ jobs:
       - name: Initial release notes
         id: initial-notes
         if: ${{ github.ref_name == github.event.repository.default_branch && steps.versions.outputs.released-semver == '' }}
+        # First-ever release: there is no prior tag to diff against, so
+        # mikepenz/release-changelog-builder-action errors at the "retrieve
+        # previous tag" stage. git-cliff builds notes straight from the
+        # conventional-commit history instead — `--unreleased --tag <next>`
+        # scopes output to the commits being released and labels them with the
+        # upcoming version; `--strip header` drops the global changelog header
+        # so only this release's sections land in RELEASE_NOTES.md (consumed
+        # verbatim by the Release step's `gh release create -F`). cliff.toml is
+        # kept in sync with changelog-configuration.json so the section
+        # taxonomy matches the mikepenz path used for subsequent releases.
+        uses: orhun/git-cliff-action@v4
         env:
-          RELEASE_NOTES_FILE: RELEASE_NOTES.md
-          VERSION: v${{ steps.gitversion.outputs.semVer }}
-        shell: bash
-        run: |
-          #!/usr/bin/env bash
-          set -euo pipefail
-          # First-ever release: there is no prior tag to diff against, so
-          # mikepenz/release-changelog-builder-action errors out at the
-          # "retrieve previous tag" stage even with failOnError: false.
-          # Skip the builder entirely on this path and write a minimal
-          # notes file so the downstream Release step can publish.
-          cat > "${RELEASE_NOTES_FILE}" <<EOF
-          ## Initial release ${VERSION}
-
-          First public release of \`composite-actions\`.
-          EOF
-          echo "✓ wrote ${RELEASE_NOTES_FILE} ($(wc -c < "${RELEASE_NOTES_FILE}") bytes)"
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          config: cliff.toml
+          args: --unreleased --tag v${{ steps.gitversion.outputs.semVer }} --strip header
 
       - name: Build Changelog
         id: changelog

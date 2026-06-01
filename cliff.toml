@@ -43,21 +43,27 @@ trim = true
 conventional_commits = true
 filter_unconventional = false
 split_commits = false
+# Kept in sync with changelog-configuration.json (mikepenz) — same emoji,
+# title, and ordering so first-release (git-cliff) and subsequent-release
+# (mikepenz) changelogs read identically. The `<!-- NN -->` prefixes set the
+# section order (two-digit => lexical sort == numeric); the body template
+# strips them via `striptags`. Parser order is first-match-wins, so the
+# `chore(release)` skip and `chore(deps)` rule precede the catch-all `chore`.
 commit_parsers = [
-    { message = "^init", group = "🎉 Initialization" },
-    { message = "^feat", group = "🚀 Features" },
-    { message = "^fix", group = "🐛 Bug Fixes" },
-    { message = "^doc", group = "📚 Documentation" },
-    { message = "^perf", group = "⚡ Performance" },
-    { message = "^refactor", group = "🔧 Refactoring" },
-    { message = "^style", group = "🎨 Styling" },
-    { message = "^test", group = "🧪 Testing" },
-    { message = "^build", group = "📦 Build" },
-    { message = "^ci", group = "👷 CI/CD" },
+    { message = "^init", group = "<!-- 00 -->🎉 Initialization" },
+    { message = "^feat", group = "<!-- 01 -->🚀 Features" },
+    { message = "^fix", group = "<!-- 02 -->🐛 Bug Fixes" },
+    { message = "^refactor", group = "<!-- 03 -->🔧 Refactoring" },
+    { message = "^perf", group = "<!-- 04 -->⚡ Performance" },
+    { message = "^doc", group = "<!-- 05 -->📚 Documentation" },
+    { message = "^style", group = "<!-- 06 -->🎨 Styling" },
+    { message = "^test", group = "<!-- 07 -->🧪 Testing" },
+    { message = "^build", group = "<!-- 08 -->📦 Build" },
+    { message = "^ci", group = "<!-- 09 -->👷 CI/CD" },
     { message = "^chore\\(release\\)", skip = true },
-    { message = "^chore\\(deps\\)", group = "⬆️ Dependencies" },
-    { message = "^chore", group = "🔨 Miscellaneous" },
-    { message = "^revert", group = "⏪ Reverts" },
+    { message = "^chore\\(deps", group = "<!-- 10 -->⬆️ Dependencies" },
+    { message = "^chore", group = "<!-- 11 -->🔨 Miscellaneous" },
+    { message = "^revert", group = "<!-- 12 -->⏪ Reverts" },
 ]
 protect_breaking_commits = false
 filter_commits = false
