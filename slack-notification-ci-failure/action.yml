@@ -1,0 +1,70 @@
+name: Slack Notification CI Failure
+description: Post a formatted CI failure notification to a Slack channel.
+author: Elio Severo Junior <elioseverojunior@gmail.com>
+
+branding:
+  icon: bell
+  color: red
+
+inputs:
+  channel-id:
+    description: Slack channel ID to post the failure notification in.
+    required: true
+  slack-bot-token:
+    description: Slack bot token used to authenticate with the Slack Web API.
+    required: true
+
+outputs:
+  ts:
+    description: Timestamp of the posted Slack message.
+    value: ${{ steps.slack.outputs.ts }}
+  channel-id:
+    description: Channel ID returned by the Slack Web API.
+    value: ${{ steps.slack.outputs.channel_id }}
+
+runs:
+  using: composite
+  steps:
+    - id: slack
+      uses: slackapi/slack-github-action@v3
+      with:
+        method: chat.postMessage
+        token: ${{ inputs.slack-bot-token }}
+        payload: |
+          {
+            "channel": "${{ inputs.channel-id }}",
+            "text": "*Build Failure* :fire:",
+            "attachments": [
+              {
+                "pretext": "Hello,\n\nthe workflow *${{ github.workflow }} Job ${{ github.job }} is failing*.",
+                "color": "e71a43",
+                "fields": [
+                  {
+                    "title": "GitHub Actions",
+                    "short": false,
+                    "value": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  },
+                  {
+                    "title": "Branch",
+                    "short": false,
+                    "value": "${{ github.event.repository.html_url }}/tree/${{ github.ref_name }}"
+                  },
+                  {
+                    "title": "Commit Hash",
+                    "short": false,
+                    "value": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  },
+                  {
+                    "title": "Committer",
+                    "short": false,
+                    "value": "${{ github.event.head_commit.author.username }}"
+                  },
+                  {
+                    "title": "Status",
+                    "short": false,
+                    "value": "*Failure* :red_circle:"
+                  }
+                ]
+              }
+            ]
+          }

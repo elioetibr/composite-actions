@@ -1,0 +1,264 @@
+name: 'Container Registry Setup'
+description: >-
+  Cloud-agnostic container registry authentication. Dispatches to the correct
+  backend based on the `provider` input (aws, gcp, azure, ghcr, dockerhub,
+  generic) and converges on a single output contract: a resolved `registry`
+  host/prefix plus optional build-time credentials. Each cloud uses its
+  official keyless-OIDC login action, so no long-lived secrets are required.
+author: 'elioseverojunior@gmail.com'
+
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  provider:
+    description: 'Registry provider: aws | gcp | azure | ghcr | dockerhub | generic'
+    required: true
+
+  # ---- Common / override -----------------------------------------------------
+  registry:
+    description: >-
+      Explicit registry host/prefix override. When set, it is used verbatim as
+      the resolved `registry` output and provider-specific host computation is
+      skipped. Required for the `generic` provider.
+    required: false
+    default: ''
+
+  # ---- AWS (ECR) -------------------------------------------------------------
+  aws-account-id:
+    description: 'AWS Account ID (aws provider)'
+    required: false
+    default: ''
+  aws-region:
+    description: 'AWS Region (aws provider)'
+    required: false
+    default: ''
+  aws-role-name:
+    description: 'AWS IAM Role Name for OIDC (aws provider)'
+    required: false
+    default: ''
+  aws-additional-ecr-registries:
+    description: 'Comma-separated additional ECR account IDs to log in to (aws provider)'
+    required: false
+    default: ''
+
+  # ---- Google (Artifact Registry) -------------------------------------------
+  gcp-location:
+    description: 'Artifact Registry location, e.g. "us" or "us-central1" (gcp provider)'
+    required: false
+    default: ''
+  gcp-project-id:
+    description: 'GCP project ID (gcp provider)'
+    required: false
+    default: ''
+  gcp-workload-identity-provider:
+    description: 'Full WIF provider resource name (gcp provider)'
+    required: false
+    default: ''
+  gcp-service-account:
+    description: 'GCP service account email to impersonate (gcp provider)'
+    required: false
+    default: ''
+
+  # ---- Azure (ACR) -----------------------------------------------------------
+  azure-client-id:
+    description: 'Azure AD application (client) ID for OIDC (azure provider)'
+    required: false
+    default: ''
+  azure-tenant-id:
+    description: 'Azure AD tenant ID (azure provider)'
+    required: false
+    default: ''
+  azure-subscription-id:
+    description: 'Azure subscription ID (azure provider)'
+    required: false
+    default: ''
+  acr-name:
+    description: 'Azure Container Registry name (without .azurecr.io) (azure provider)'
+    required: false
+    default: ''
+
+  # ---- GHCR / Docker Hub / generic (username + password) ---------------------
+  username:
+    description: 'Registry username (ghcr/dockerhub/generic). Defaults to github.actor for ghcr.'
+    required: false
+    default: ''
+  password:
+    description: >-
+      Registry password/token (ghcr/dockerhub/generic). For ghcr pass
+      `github.token` or a PAT; for dockerhub a PAT; for generic the secret.
+    required: false
+    default: ''
+  dockerhub-namespace:
+    description: 'Docker Hub user/org namespace used as the registry prefix (dockerhub provider)'
+    required: false
+    default: ''
+
+outputs:
+  registry:
+    description: 'Resolved registry host/prefix to prepend to the repository name'
+    value: ${{ steps.resolve.outputs.registry }}
+  username:
+    description: 'Username for build-time docker login (may be empty for OIDC backends)'
+    value: ${{ steps.resolve.outputs.username }}
+  password:
+    description: 'Password/token for build-time docker login (masked; may be empty)'
+    value: ${{ steps.resolve.outputs.password }}
+  # AWS-specific passthrough (empty for non-aws providers) — preserves existing
+  # build-secret wiring in callers without forcing them to special-case aws.
+  aws-access-key-id:
+    description: 'AWS Access Key ID (aws provider only; empty otherwise)'
+    value: ${{ steps.aws.outputs.aws-access-key-id }}
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key (aws provider only; empty otherwise)'
+    value: ${{ steps.aws.outputs.aws-secret-access-key }}
+  aws-session-token:
+    description: 'AWS Session Token (aws provider only; empty otherwise)'
+    value: ${{ steps.aws.outputs.aws-session-token }}
+
+runs:
+  using: 'composite'
+  steps:
+    # =========================================================================
+    # AWS / ECR
+    # =========================================================================
+    - name: AWS ECR Setup
+      id: aws
+      if: ${{ inputs.provider == 'aws' }}
+      uses: elioetibr/composite-actions/aws-ecr-setup@main
+      with:
+        aws-account-id: ${{ inputs.aws-account-id }}
+        aws-region: ${{ inputs.aws-region }}
+        aws-role-name: ${{ inputs.aws-role-name }}
+        additional-registries: ${{ inputs.aws-additional-ecr-registries }}
+
+    # =========================================================================
+    # GCP / Artifact Registry  (keyless via Workload Identity Federation)
+    # =========================================================================
+    - name: GCP Auth (WIF)
+      id: gcp
+      if: ${{ inputs.provider == 'gcp' }}
+      uses: google-github-actions/auth@v2
+      with:
+        token_format: access_token
+        workload_identity_provider: ${{ inputs.gcp-workload-identity-provider }}
+        service_account: ${{ inputs.gcp-service-account }}
+
+    - name: GCP Docker Login
+      if: ${{ inputs.provider == 'gcp' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.gcp-location }}-docker.pkg.dev
+        username: oauth2accesstoken
+        password: ${{ steps.gcp.outputs.access_token }}
+
+    # =========================================================================
+    # Azure / ACR  (keyless via OIDC)
+    # =========================================================================
+    - name: Azure Login (OIDC)
+      if: ${{ inputs.provider == 'azure' }}
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.azure-client-id }}
+        tenant-id: ${{ inputs.azure-tenant-id }}
+        subscription-id: ${{ inputs.azure-subscription-id }}
+
+    - name: ACR Login
+      if: ${{ inputs.provider == 'azure' }}
+      shell: bash
+      env:
+        ACR_NAME: ${{ inputs.acr-name }}
+      run: |
+        set -euo pipefail
+        az acr login --name "${ACR_NAME}"
+
+    # =========================================================================
+    # GHCR / Docker Hub / generic  (username + password docker login)
+    # =========================================================================
+    - name: GHCR Login
+      if: ${{ inputs.provider == 'ghcr' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ inputs.username || github.actor }}
+        password: ${{ inputs.password }}
+
+    - name: Docker Hub Login
+      if: ${{ inputs.provider == 'dockerhub' }}
+      uses: docker/login-action@v3
+      with:
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+
+    - name: Generic Registry Login
+      if: ${{ inputs.provider == 'generic' && inputs.username != '' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+
+    # =========================================================================
+    # Converge on the single output contract: resolved `registry` + creds
+    # =========================================================================
+    - name: Resolve registry host
+      id: resolve
+      shell: bash
+      env:
+        PROVIDER: ${{ inputs.provider }}
+        REGISTRY_OVERRIDE: ${{ inputs.registry }}
+        AWS_ECR_REGISTRY: ${{ steps.aws.outputs.registry }}
+        GCP_LOCATION: ${{ inputs.gcp-location }}
+        GCP_PROJECT_ID: ${{ inputs.gcp-project-id }}
+        ACR_NAME: ${{ inputs.acr-name }}
+        GHCR_OWNER: ${{ github.repository_owner }}
+        DOCKERHUB_NAMESPACE: ${{ inputs.dockerhub-namespace }}
+        IN_USERNAME: ${{ inputs.username }}
+        IN_PASSWORD: ${{ inputs.password }}
+      run: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        if [ -n "${REGISTRY_OVERRIDE}" ]; then
+          registry="${REGISTRY_OVERRIDE}"
+        else
+          case "${PROVIDER}" in
+            aws)
+              registry="${AWS_ECR_REGISTRY}"
+              ;;
+            gcp)
+              # GAR image path: LOCATION-docker.pkg.dev/PROJECT/REPOSITORY
+              registry="${GCP_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}"
+              ;;
+            azure)
+              registry="${ACR_NAME}.azurecr.io"
+              ;;
+            ghcr)
+              # ghcr image path: ghcr.io/OWNER/REPOSITORY (owner lowercased)
+              registry="ghcr.io/$(echo "${GHCR_OWNER}" | tr '[:upper:]' '[:lower:]')"
+              ;;
+            dockerhub)
+              registry="docker.io/${DOCKERHUB_NAMESPACE}"
+              ;;
+            generic)
+              echo "::error::provider=generic requires the 'registry' input to be set" >&2
+              exit 1
+              ;;
+            *)
+              echo "::error::unknown provider '${PROVIDER}' (expected aws|gcp|azure|ghcr|dockerhub|generic)" >&2
+              exit 1
+              ;;
+          esac
+        fi
+
+        echo "Resolved registry: ${registry}"
+        echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+
+        # Surface username/password for callers that wire build-time docker
+        # login secrets. OIDC backends (aws/gcp/azure) leave these empty; the
+        # docker login already happened above and aws creds are passed through
+        # the dedicated aws-* outputs.
+        echo "username=${IN_USERNAME}" >> "$GITHUB_OUTPUT"
+        echo "::add-mask::${IN_PASSWORD}"
+        echo "password=${IN_PASSWORD}" >> "$GITHUB_OUTPUT"

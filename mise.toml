@@ -1,0 +1,168 @@
+# mise configuration — https://mise.jdx.dev
+#
+# Reproduces the CI gate from .github/workflows/cicd.yml locally so failures
+# surface before push. Run `mise install` once, then `mise run check`.
+#
+# Tool/task discovery: `mise tasks` (list) · `mise run <task>` · `mise ls` (tools)
+
+min_version = "2024.11.0"
+
+# ── Toolchain ────────────────────────────────────────────────────────────────
+# node + python are intentionally NOT pinned here: `.nvmrc` (24) and
+# `.python-version` (3.13) are the single source of truth (see [settings]).
+[tools]
+actionlint = "latest"               # workflow linter (drives shellcheck on run-blocks)
+shellcheck = "latest"               # required by actionlint -shellcheck=shellcheck
+yamllint = "latest"                 # pipx-backed; reads .yamllint.yaml
+gitleaks = "latest"                 # secret scanning (mirrors CI gitleaks job)
+gitversion = "6"                    # SemVer calc; matches gitversion/execute@v4.5 (GitVersion 6.x)
+act = "latest"                      # run workflows locally
+lefthook = "latest"                 # git hooks manager (config: lefthook.yml)
+"npm:action-docs" = "latest"        # generates README.md from action.yml
+"npm:markdownlint-cli2" = "latest"  # reads .markdownlint.yaml
+"npm:prettier" = "latest"           # reads .prettierrc
+
+[settings]
+# Treat .nvmrc / .python-version as authoritative version files (DRY).
+idiomatic_version_file_enable_tools = ["node", "python"]
+
+# ── Onboarding ───────────────────────────────────────────────────────────────
+[tasks.setup]
+description = "Provision the toolchain and install git hooks (run once after clone)"
+run = "lefthook install"
+
+# ── Aggregate gates ──────────────────────────────────────────────────────────
+[tasks.check]
+description = "Full pre-push gate: format + lint + docs + secrets (mirrors CI)"
+depends = ["format:check", "lint", "docs:check"]
+
+[tasks.fix]
+description = "Auto-fix everything fixable: format code and regenerate action docs"
+depends = ["format", "docs"]
+
+[tasks.lint]
+description = "Run every linter (actions, yaml, markdown, secrets)"
+depends = ["lint:actions", "lint:yaml", "lint:md", "lint:secrets"]
+
+# ── Linters (each mirrors a CI job) ──────────────────────────────────────────
+[tasks."lint:actions"]
+description = "Lint GitHub Actions workflows (actionlint + shellcheck)"
+run = "actionlint -shellcheck=shellcheck"
+
+[tasks."lint:yaml"]
+description = "Lint all YAML against .yamllint.yaml"
+run = "yamllint ."
+
+[tasks."lint:md"]
+description = "Lint Markdown against .markdownlint.yaml"
+run = "markdownlint-cli2 '**/*.md' '!node_modules/**' '!.venv/**' '!.remember/**' '!docs/superpowers/**' '!CHANGELOG.md'"
+
+[tasks."lint:secrets"]
+description = "Scan the repo for committed secrets (gitleaks)"
+run = "gitleaks detect --no-banner --redact -v"
+
+# ── Formatting ───────────────────────────────────────────────────────────────
+[tasks.format]
+description = "Format the repo with prettier"
+run = "prettier --write ."
+
+[tasks."format:check"]
+description = "Verify prettier formatting without writing"
+run = "prettier --check ."
+
+# ── Action docs (README ⇄ action.yml sync) ───────────────────────────────────
+[tasks.docs]
+description = "Regenerate every action's README.md from its action.yml"
+shell = "bash -c"
+run = """
+#!/usr/bin/env bash
+
+set -euo pipefail
+shopt -s nullglob
+
+found=0
+for f in */action.yml */action.yaml; do
+  found=1
+  dir="$(dirname "$f")"
+  base="$(basename "$f")"
+  readme="$dir/README.md"
+  # action-docs --update-readme only rewrites BETWEEN markers in an existing
+  # README; with none it errors (ENOENT). Seed a scaffold so the action is
+  # documented like the rest. Title + description come from action.yml (DRY —
+  # single source of truth); action-docs then fills the inputs/outputs tables.
+  if [ ! -f "$readme" ]; then
+    echo "action-docs: scaffold $readme"
+    title="$(yq -r '.name // ""' "$f")"
+    desc="$(yq -r '.description // ""' "$f")"
+    {
+      printf '# %s\\n\\n' "${title:-$dir}"
+      [ -n "$desc" ] && printf '%s\\n\\n' "$desc"
+      printf '<!-- action-docs-inputs source="%s" -->\\n<!-- action-docs-inputs source="%s" -->\\n\\n' "$base" "$base"
+      printf '<!-- action-docs-outputs source="%s" -->\\n<!-- action-docs-outputs source="%s" -->\\n\\n' "$base" "$base"
+      printf '## Usage\\n\\n```yaml\\n- uses: elioetibr/composite-actions/%s@v0\\n```\\n' "$dir"
+    } > "$readme"
+  fi
+  echo "action-docs: $f"
+  # Run inside the action's directory: the README markers use a relative
+  # `source="action.yml"`, which action-docs resolves against the CWD when
+  # rewriting. Running from the repo root makes it look for a root-level
+  # action.yml that doesn't exist, silently leaving the README stale.
+  ( cd "$dir" && action-docs --no-banner --source "$base" --update-readme )
+done
+[ "$found" -eq 1 ] || echo 'No actions found.'
+"""
+
+[tasks."docs:check"]
+description = "Fail if any README.md is out of sync with its action.yml"
+depends = ["docs"]
+shell = "bash -c"
+run = """
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if ! git diff --quiet -- '*/README.md'; then
+  echo '::error:: README.md out of sync with action.yml — run: mise run docs' >&2
+  git diff --stat -- '*/README.md'
+  exit 1
+fi
+echo 'All action READMEs are in sync.'
+"""
+
+# ── Versioning & local workflow runs ─────────────────────────────────────────
+[tasks.versions]
+description = "Print the GitVersion Versions for the current commit"
+shell = "bash -c"
+run = """
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+gitversion | jq '{
+  InformationalVersion: .InformationalVersion,
+  FullSemVer: .FullSemVer,
+  Major: .Major,
+  MajorMinor: "\\(.Major).\\(.Minor)",
+  MajorMinorPatch: .MajorMinorPatch,
+  SemVer: .SemVer
+}'
+"""
+
+[tasks.version]
+description = "Print the GitVersion SemVer for the current commit"
+shell = "bash -c"
+run = """
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+gitversion /showvariable SemVer
+"""
+
+[tasks."act:list"]
+description = "List jobs act would run for the push event"
+run = "act push -W .github/workflows/cicd.yml --list"
+
+[tasks.act]
+description = "Run the CI workflow locally via act (push event)"
+run = "act push -W .github/workflows/cicd.yml"

@@ -1,0 +1,43 @@
+# Security - ignore environment variable files
+.env
+.env.local
+.env.*.local
+*.pem
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (action-docs runtime)
+node_modules/
+
+# Python (yamllint runtime, if installed locally)
+.venv/
+__pycache__/
+
+# Logs
+*.log
+
+# Terraform (not used here, but matches user-wide preference)
+.terraform/
+
+# Other Ignore patterns
+/.ignored/*
+/out/*
+/*.patch
+/RELEASE_NOTES.md
+
+# Test coverage output (bun's native coverage; `coverageDir` in bunfig.toml).
+/coverage/
+
+# Git worktrees (isolated workspaces for parallel feature work)
+/.worktrees/
+/.act/
+
+# Always add the files below
+!/.act/event.json
+!/.act/.vars.template
