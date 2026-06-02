@@ -478,7 +478,7 @@ jobs:
 
       - name: Add PR comment with tag link
         if: ${{ steps.find-pr.outputs.number != '' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
