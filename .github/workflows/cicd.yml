@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON_ARM64 || vars.RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Lint-only job — no need for full history or tags.
           # `fetch-depth: 1` shaves seconds off the clone; `fetch-tags:
@@ -59,7 +59,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON_ARM64 || vars.RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Lint-only job — see actionlint job for the same comment.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
@@ -88,7 +88,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON_ARM64 || vars.RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Lint-only job — see actionlint job for the same comment.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
@@ -109,7 +109,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON_ARM64 || vars.RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Lint-only job — see actionlint job for the same comment.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
@@ -121,7 +121,7 @@ jobs:
           node-version-file: ".nvmrc"
 
       - name: Cache npx action-docs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           # `npx --yes action-docs@^2 ...` downloads action-docs (and
           # its deps) into the global npm cache on each invocation.
@@ -178,7 +178,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON_ARM64 || vars.RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Gitleaks scans full git history for leaked secrets, so we
           # keep `fetch-depth: 0`. Tags aren't part of the scan, so
@@ -278,7 +278,7 @@ jobs:
 
       - name: Checkout with App token
         id: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Stay on a branch ref (not detached HEAD on github.sha) so the
           # subsequent Tagging step's `git push --follow-tags` has a real
@@ -304,7 +304,7 @@ jobs:
           echo "Bot identity: ${APP_SLUG}[bot] (id=${user_id})"
 
       - name: Cache GitVersion tool
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           # `gittools/actions/gitversion/setup` installs the GitVersion
           # .NET tool from scratch on a clean runner (~30-60s). Caching
@@ -478,7 +478,7 @@ jobs:
 
       - name: Add PR comment with tag link
         if: ${{ steps.find-pr.outputs.number != '' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

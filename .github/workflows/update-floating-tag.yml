@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON_ARM64 || vars.RUNS_ON || 'ubuntu-latest' }}
     steps:
       # Minimal initial checkout so `./checkout-as-bot` resolves.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Checkout as bot
         uses: ./checkout-as-bot
